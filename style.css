@@ -27,6 +27,9 @@ body {
     align-items: center;
     min-height: 100vh;
     min-height: 100dvh;
+    min-height: var(--app-height, 100dvh);
+    height: var(--app-height, 100dvh);
+    transition: height 0.15s ease;
 }
 
 /* CRT scanline overlay */
@@ -72,6 +75,7 @@ h1.hidden { display: none; }
     flex-direction: column;
     width: 92%;
     min-height: 340px;
+    max-height: calc(var(--app-height, 100dvh) - 30px);
     padding: 20px;
     transition: opacity 1s ease;
 }
