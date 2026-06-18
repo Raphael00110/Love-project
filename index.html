@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Decryption Interface</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <!-- CRT scanline overlay -->
+    <div id="scanline"></div>
+
+    <!-- Hidden input keeps mobile keyboard alive -->
+    <input id="mobileInput" type="text" autocomplete="off" autocorrect="off"
+           autocapitalize="off" spellcheck="false"
+           style="position:fixed;opacity:0;pointer-events:none;width:1px;height:1px;top:0;left:0;z-index:-1;">
+
+    <!-- Fullscreen Cinematic Viewport -->
+    <div id="videoContainer" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:black; z-index:9999; overflow:hidden;">
+        <div style="width:100%; height:100%; transform:scale(1.15); transform-origin:center center;">
+            <iframe id="cinematicFrame" src="" style="width:100%; height:100%; border:none;" allow="autoplay"></iframe>
+        </div>
+        <button id="videoPlayBtn" style="position:absolute; bottom:30px; right:30px; background:rgba(0,255,65,0.1); color:#00ff41; border:2px solid #00ff41; padding:10px 20px; font-family:monospace; font-size:0.9rem; cursor:pointer; box-shadow:0 0 10px rgba(0,255,65,0.4); text-transform:uppercase; z-index:10000;">
+            Skip Stream ❯
+        </button>
+    </div>
+
+    <!-- Media Vault Pop-up -->
+    <div id="mediaVaultOverlay" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.95); z-index:9998; justify-content:center; align-items:center; box-sizing:border-box; padding:20px; opacity:0; transition:opacity 0.5s ease;">
+        <div style="display:flex; flex-direction:column; align-items:center; max-width:90%; max-height:90%;">
+            <img id="vaultImage" src="" alt="Decrypted Vault Asset" style="max-width:100%; max-height:70vh; border:3px solid #ffffff; box-shadow:0 0 20px rgba(255,255,255,0.3); border-radius:4px; object-fit:contain; margin-bottom:20px;">
+            <div style="display:flex; gap:20px;">
+                <button id="vaultDownloadBtn" style="display:none; background:transparent; color:#ffffff; border:2px solid #ffffff; padding:10px 20px; font-family:monospace; font-size:1rem; cursor:pointer; text-transform:uppercase; box-shadow:0 0 10px rgba(255,255,255,0.2);">
+                    💾 Download
+                </button>
+                <button id="vaultCloseBtn" style="background:transparent; color:#ff3333; border:2px solid #ff3333; padding:10px 20px; font-family:monospace; font-size:1rem; cursor:pointer; text-transform:uppercase; box-shadow:0 0 10px rgba(255,51,51,0.2);">
+                    ✕ Close Asset
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Story Letter Screen -->
+    <div id="loveLetterScreen" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:black; color:#ffffff; font-family:monospace; z-index:9997; justify-content:center; align-items:center; padding:40px; box-sizing:border-box; overflow-y:auto; opacity:1;">
+        <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; max-width:700px; width:100%;">
+            <div id="letterContent" style="width:100%; display:flex; flex-direction:column; gap:24px; font-size:1.25rem; line-height:1.8; text-shadow:0 0 8px rgba(255,255,255,0.4); text-align:center;"></div>
+        </div>
+    </div>
+
+    <!-- Matrix rain -->
+    <canvas id="matrix"></canvas>
+
+    <h1 id="mainTitle">SECURITY ACCESS REQUIRED</h1>
+
+
+    <div id="terminalApp" class="terminal">
+        <div id="output">
+            <p>SYSTEM STATUS: STANDBY</p>
+            <p>AWAITING OPERATOR INITIALIZATION...</p>
+        </div>
+        <div id="controlPanel">
+            <button id="startBtn">INITIALIZE DECRYPTION</button>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
