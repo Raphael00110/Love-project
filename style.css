@@ -23,13 +23,16 @@ body {
     overflow: hidden;
     display: flex;
     flex-direction: column;
-    justify-content: center;
+    justify-content: flex-start;
     align-items: center;
-    /* JS sets --app-height from visualViewport.height so it
-       automatically shrinks when the on-screen keyboard opens */
+    /* Use JS-tracked visual viewport height so the layout shrinks when
+       the on-screen keyboard slides up, keeping the terminal always visible */
     height: var(--app-height, 100dvh);
     max-height: var(--app-height, 100dvh);
-    transition: height 0.1s ease, max-height 0.1s ease;
+    overflow-y: auto;
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+    box-sizing: border-box;
 }
 
 /* CRT scanline overlay */
@@ -74,13 +77,11 @@ h1.hidden { display: none; }
     display: flex;
     flex-direction: column;
     width: 92%;
-    min-height: 200px;
-    /* Shrinks as --app-height shrinks when keyboard opens */
-    max-height: calc(var(--app-height, 100dvh) - 16px);
+    min-height: 340px;
     padding: 20px;
-    transition: opacity 1s ease, max-height 0.1s ease;
+    transition: opacity 1s ease;
 }
-.terminal.fullscreen { min-height: 260px; }
+.terminal.fullscreen { min-height: 380px; }
 
 #output {
     flex-grow: 1;
