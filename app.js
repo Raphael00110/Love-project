@@ -610,18 +610,18 @@ document.addEventListener("DOMContentLoaded", () => {
 
     function createNewPrompt() {
         inputText = "";
+        mobileInput.value = "";
         activePromptLine = document.createElement("p");
         activePromptLine.innerHTML = `> <span class="input-text"></span><span class="terminal-cursor">█</span>`;
         output.appendChild(activePromptLine);
         output.scrollTop = output.scrollHeight;
-        // Small delay before focus so iOS doesn't fight us
         setTimeout(() => mobileInput.focus(), 50);
     }
 
     function updatePromptDisplay() {
         if (!activePromptLine) return;
         const span = activePromptLine.querySelector(".input-text");
-        if (span) span.innerText = inputText;
+        if (span) span.innerText = mobileInput.value;
     }
 
     function sealPrompt() {
@@ -661,78 +661,24 @@ document.addEventListener("DOMContentLoaded", () => {
     // =========================================================================
     // =========================================================================
     // INPUT HANDLING
-    // APPROACH: We build inputText ourselves from keydown events.
-    // We NEVER read mobileInput.value — Gboard corrupts it with autocorrect.
-    // The hidden input exists only to summon the mobile keyboard.
-    // All character tracking is done manually via keydown + beforeinput.
+    // Android/Gboard fix: stop fighting the keyboard.
+    // The real input field is visible inside the terminal, styled to look
+    // like the terminal cursor line. We read .value ONLY on Enter.
+    // No character-by-character tracking = no Gboard interference.
     // =========================================================================
-
-    // beforeinput fires BEFORE Gboard mangling — gives us the real character
-    mobileInput.addEventListener("beforeinput", (e) => {
-        e.preventDefault(); // stop Gboard from writing to the input field
-
-        if (appState === "idle" || isProcessing) return;
-
-        const type = e.inputType;
-
-        if (type === "insertText" && e.data) {
-            // Normal character typed
-            for (const ch of e.data) {
-                inputText += ch;
-            }
-            updatePromptDisplay();
-        }
-        else if (type === "deleteContentBackward") {
-            inputText = inputText.slice(0, -1);
-            updatePromptDisplay();
-        }
-        else if (type === "insertLineBreak" || type === "insertParagraph") {
-            handleEnter();
-        }
-        // Ignore: insertCompositionText, insertFromComposition, etc.
-        // Those are Gboard autocomplete events we don't want
-    });
-
-    // Catch Enter key explicitly (some keyboards use keydown for this)
-    mobileInput.addEventListener("keydown", (e) => {
-        if (e.key === "Enter") {
-            e.preventDefault();
-            handleEnter();
-        }
-        // Backspace fallback for keyboards that don't fire beforeinput
-        if (e.key === "Backspace") {
-            e.preventDefault();
-            if (appState !== "idle" && !isProcessing) {
-                inputText = inputText.slice(0, -1);
-                updatePromptDisplay();
-            }
-        }
-    });
-
-    // Desktop physical keyboard fallback
-    document.addEventListener("keydown", (e) => {
-        if (document.activeElement === mobileInput) return;
-        if (appState === "idle") return;
-        if (e.key === "Enter") { e.preventDefault(); handleEnter(); return; }
-        if (e.key === "Backspace") {
-            e.preventDefault();
-            inputText = inputText.slice(0, -1);
-            updatePromptDisplay();
-            return;
-        }
-        if (e.key.length === 1 && !e.ctrlKey && !e.metaKey) {
-            inputText += e.key;
-            updatePromptDisplay();
-        }
-    });
 
     function handleEnter() {
         if (isProcessing) return;
-        const value = inputText.trim().toLowerCase();
+        // Read directly from the input field — this is always correct
+        const value = mobileInput.value.trim().toLowerCase();
         sealPrompt();
-        inputText = "";
-        // Keep mobileInput.value empty always
+        // Show what was typed in the output
+        if (activePromptLine) {
+            const span = activePromptLine.querySelector(".input-text");
+            if (span) span.innerText = mobileInput.value.trim();
+        }
         mobileInput.value = "";
+        inputText = "";
         if (appState === "level1")         return handleLevel1(value);
         if (appState === "level2")         return handleLevel2(value);
         if (appState === "twist")          return handleTwist(value);
@@ -742,7 +688,39 @@ document.addEventListener("DOMContentLoaded", () => {
         if (appState === "secretDownload") return handleSecretDownload(value);
     }
 
-    // Tap anywhere to refocus
+    // Mirror mobileInput value into the terminal prompt display as user types
+    // We still show typing in real time — just don't process it until Enter
+    mobileInput.addEventListener("input", () => {
+        inputText = mobileInput.value;
+        updatePromptDisplay();
+    });
+
+    mobileInput.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+            e.preventDefault();
+            handleEnter();
+        }
+    });
+
+    // Desktop fallback
+    document.addEventListener("keydown", (e) => {
+        if (document.activeElement === mobileInput) return;
+        if (appState === "idle") return;
+        if (e.key === "Enter") { e.preventDefault(); handleEnter(); return; }
+        if (e.key === "Backspace") {
+            e.preventDefault();
+            mobileInput.value = mobileInput.value.slice(0, -1);
+            inputText = mobileInput.value;
+            updatePromptDisplay();
+            return;
+        }
+        if (e.key.length === 1 && !e.ctrlKey && !e.metaKey) {
+            mobileInput.value += e.key;
+            inputText = mobileInput.value;
+            updatePromptDisplay();
+        }
+    });
+
     document.addEventListener("click", (e) => {
         if (e.target === startBtn) return;
         if (appState !== "idle") {
@@ -751,7 +729,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     });
 
-    // =========================================================================
+        // =========================================================================
     // BOOT
     // =========================================================================
     // ── KEYBOARD HEIGHT FIX ──────────────────────────────────────────────────
