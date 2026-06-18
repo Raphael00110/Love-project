@@ -659,40 +659,57 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     // =========================================================================
-    // INPUT HANDLING — rebuilt to fix Android/Gboard backwards input
+    // =========================================================================
+    // INPUT HANDLING
+    // APPROACH: We build inputText ourselves from keydown events.
+    // We NEVER read mobileInput.value — Gboard corrupts it with autocorrect.
+    // The hidden input exists only to summon the mobile keyboard.
+    // All character tracking is done manually via keydown + beforeinput.
     // =========================================================================
 
-    // Gboard/IME fix: block input events that fire MID-composition.
-    // compositionstart = Gboard started autocorrect/word suggestion
-    // compositionend   = Gboard finished; NOW the value is correct
-    // Without this guard, each autocorrect fires multiple input events
-    // with partial/reversed characters.
-    let isComposing = false;
+    // beforeinput fires BEFORE Gboard mangling — gives us the real character
+    mobileInput.addEventListener("beforeinput", (e) => {
+        e.preventDefault(); // stop Gboard from writing to the input field
 
-    mobileInput.addEventListener("compositionstart", () => {
-        isComposing = true;
+        if (appState === "idle" || isProcessing) return;
+
+        const type = e.inputType;
+
+        if (type === "insertText" && e.data) {
+            // Normal character typed
+            for (const ch of e.data) {
+                inputText += ch;
+            }
+            updatePromptDisplay();
+        }
+        else if (type === "deleteContentBackward") {
+            inputText = inputText.slice(0, -1);
+            updatePromptDisplay();
+        }
+        else if (type === "insertLineBreak" || type === "insertParagraph") {
+            handleEnter();
+        }
+        // Ignore: insertCompositionText, insertFromComposition, etc.
+        // Those are Gboard autocomplete events we don't want
     });
 
-    mobileInput.addEventListener("compositionend", () => {
-        isComposing = false;
-        inputText = mobileInput.value;
-        updatePromptDisplay();
-    });
-
-    mobileInput.addEventListener("input", () => {
-        if (isComposing) return; // ignore mid-IME events
-        inputText = mobileInput.value;
-        updatePromptDisplay();
-    });
-
+    // Catch Enter key explicitly (some keyboards use keydown for this)
     mobileInput.addEventListener("keydown", (e) => {
         if (e.key === "Enter") {
             e.preventDefault();
             handleEnter();
         }
+        // Backspace fallback for keyboards that don't fire beforeinput
+        if (e.key === "Backspace") {
+            e.preventDefault();
+            if (appState !== "idle" && !isProcessing) {
+                inputText = inputText.slice(0, -1);
+                updatePromptDisplay();
+            }
+        }
     });
 
-    // Desktop fallback — only fires when mobileInput is NOT the active element
+    // Desktop physical keyboard fallback
     document.addEventListener("keydown", (e) => {
         if (document.activeElement === mobileInput) return;
         if (appState === "idle") return;
@@ -700,16 +717,11 @@ document.addEventListener("DOMContentLoaded", () => {
         if (e.key === "Backspace") {
             e.preventDefault();
             inputText = inputText.slice(0, -1);
-            mobileInput.value = inputText;
-            lastInputValue = inputText;
             updatePromptDisplay();
             return;
         }
         if (e.key.length === 1 && !e.ctrlKey && !e.metaKey) {
-            playSystemSound("click");
             inputText += e.key;
-            mobileInput.value = inputText;
-            lastInputValue = inputText;
             updatePromptDisplay();
         }
     });
@@ -718,9 +730,9 @@ document.addEventListener("DOMContentLoaded", () => {
         if (isProcessing) return;
         const value = inputText.trim().toLowerCase();
         sealPrompt();
-        mobileInput.value = "";
         inputText = "";
-        isComposing = false;
+        // Keep mobileInput.value empty always
+        mobileInput.value = "";
         if (appState === "level1")         return handleLevel1(value);
         if (appState === "level2")         return handleLevel2(value);
         if (appState === "twist")          return handleTwist(value);
@@ -730,14 +742,12 @@ document.addEventListener("DOMContentLoaded", () => {
         if (appState === "secretDownload") return handleSecretDownload(value);
     }
 
-    // Re-focus on tap anywhere — scroll output into view too
+    // Tap anywhere to refocus
     document.addEventListener("click", (e) => {
         if (e.target === startBtn) return;
         if (appState !== "idle") {
-            setTimeout(() => {
-                mobileInput.focus();
-                output.scrollTop = output.scrollHeight;
-            }, 50);
+            mobileInput.focus();
+            setTimeout(() => { output.scrollTop = output.scrollHeight; }, 80);
         }
     });
 
