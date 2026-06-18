@@ -23,16 +23,14 @@ body {
     overflow: hidden;
     display: flex;
     flex-direction: column;
-    justify-content: flex-start;
+    justify-content: center;
     align-items: center;
-    /* Use JS-tracked visual viewport height so the layout shrinks when
-       the on-screen keyboard slides up, keeping the terminal always visible */
+    /* JS tracks the real visible viewport height (shrinks when keyboard opens)
+       and writes it to --app-height, so the terminal stays above the keyboard */
     height: var(--app-height, 100dvh);
     max-height: var(--app-height, 100dvh);
-    overflow-y: auto;
-    padding-top: env(safe-area-inset-top);
-    padding-bottom: env(safe-area-inset-bottom);
     box-sizing: border-box;
+    padding: env(safe-area-inset-top, 12px) 0 env(safe-area-inset-bottom, 12px) 0;
 }
 
 /* CRT scanline overlay */
