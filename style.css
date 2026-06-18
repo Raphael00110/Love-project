@@ -25,11 +25,11 @@ body {
     flex-direction: column;
     justify-content: center;
     align-items: center;
-    min-height: 100vh;
-    min-height: 100dvh;
-    min-height: var(--app-height, 100dvh);
+    /* JS sets --app-height from visualViewport.height so it
+       automatically shrinks when the on-screen keyboard opens */
     height: var(--app-height, 100dvh);
-    transition: height 0.15s ease;
+    max-height: var(--app-height, 100dvh);
+    transition: height 0.1s ease, max-height 0.1s ease;
 }
 
 /* CRT scanline overlay */
@@ -74,12 +74,13 @@ h1.hidden { display: none; }
     display: flex;
     flex-direction: column;
     width: 92%;
-    min-height: 340px;
-    max-height: calc(var(--app-height, 100dvh) - 30px);
+    min-height: 200px;
+    /* Shrinks as --app-height shrinks when keyboard opens */
+    max-height: calc(var(--app-height, 100dvh) - 16px);
     padding: 20px;
-    transition: opacity 1s ease;
+    transition: opacity 1s ease, max-height 0.1s ease;
 }
-.terminal.fullscreen { min-height: 380px; }
+.terminal.fullscreen { min-height: 260px; }
 
 #output {
     flex-grow: 1;
