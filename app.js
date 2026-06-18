@@ -16,6 +16,18 @@ document.addEventListener("DOMContentLoaded", () => {
         return;
     }
 
+    // Move the hidden input off-screen (not just opacity:0 at 0,0).
+    // A 1×1px input positioned at top:0;left:0 causes Gboard to keep its
+    // internal cursor at position 0, so every character lands at the START
+    // of the string (typing "mia" shows "aim"). Off-screen + real size
+    // makes the OS treat it as a normal field and track the cursor correctly.
+    Object.assign(mobileInput.style, {
+        left: '-9999px', top: '50%',
+        width: '200px',  height: '44px',
+        fontSize: '16px',          // prevents iOS zoom-on-focus
+        opacity: '0', zIndex: '1'  // invisible but real
+    });
+
     const ctx = canvas.getContext("2d");
 
     // =========================================================================
@@ -921,33 +933,70 @@ document.addEventListener("DOMContentLoaded", () => {
     // =========================================================================
     // INPUT HANDLING
     // =========================================================================
-    // The hidden input is the single source of truth for what's been typed.
-    // We only ever READ its .value (never write to it while focused) so the
-    // browser/IME's own cursor handling stays correct — this is what was
-    // causing typed text to come out scrambled/backward on mobile keyboards.
-    mobileInput.addEventListener("input", () => {
+    // "Clear-after-each-char" strategy: the hidden input is emptied after
+    // every keystroke. Because the field is always blank before the next key,
+    // there is no cursor-position to get wrong — Gboard can't insert at
+    // "position 0" when the field is already empty. Each input event gives us
+    // only the new characters; we append them to inputText ourselves.
+    //
+    // Backspace: iOS/desktop fire keydown(Backspace) reliably. Android Gboard
+    // fires an input event with inputType="deleteContentBackward" instead.
+    // We handle both, with a flag so we never double-delete.
+
+    let _composing = false;
+    let _bsHandled = false; // true when keydown already removed the character
+
+    mobileInput.addEventListener("compositionstart", () => { _composing = true; });
+    mobileInput.addEventListener("compositionend", () => {
+        _composing = false;
         const v = mobileInput.value;
-        inputText = v;
-        // Force cursor to the END every time. On mobile, hidden/invisible
-        // inputs keep their cursor at position 0, so each new character gets
-        // inserted at the start — producing reversed text like "aim" when
-        // the user typed "mia". This one line is the fix.
-        mobileInput.setSelectionRange(v.length, v.length);
-        playSystemSound("click");
-        updatePromptDisplay();
-        scrollActiveLineIntoView();
+        if (v) { inputText += v; mobileInput.value = ""; playSystemSound("click"); updatePromptDisplay(); scrollActiveLineIntoView(); }
     });
 
     mobileInput.addEventListener("keydown", (e) => {
-        if (e.key === "Enter") { e.preventDefault(); handleEnter(); }
+        if (e.key === "Enter") { e.preventDefault(); handleEnter(); return; }
+        if (e.key === "Backspace" && !_composing) {
+            e.preventDefault();
+            mobileInput.value = "";        // clear any partial text
+            inputText = inputText.slice(0, -1);
+            _bsHandled = true;
+            updatePromptDisplay();
+        }
+    });
+
+    mobileInput.addEventListener("input", (e) => {
+        if (_composing) return;
+
+        // Android backspace arrives here instead of keydown
+        if (e.inputType === "deleteContentBackward" || e.inputType === "deleteWordBackward") {
+            mobileInput.value = "";
+            if (!_bsHandled) { inputText = inputText.slice(0, -1); updatePromptDisplay(); }
+            _bsHandled = false;
+            return;
+        }
+        _bsHandled = false;
+
+        const v = mobileInput.value;
+        if (v) {
+            inputText += v;
+            mobileInput.value = "";   // empty again so next char starts from position 0 of an EMPTY field
+            playSystemSound("click");
+            updatePromptDisplay();
+            scrollActiveLineIntoView();
+        }
     });
 
     mobileInput.addEventListener("focus", () => {
-        setTimeout(scrollActiveLineIntoView, 350); // let the keyboard finish animating in
+        setTimeout(scrollActiveLineIntoView, 350);
     });
 
-    // Fallback ONLY for a physical keyboard typing while the hidden input
-    // somehow isn't focused — never writes to mobileInput.value directly.
+    // Refocus hidden input on any tap so the keyboard stays open
+    document.addEventListener("click", (e) => {
+        if (e.target === startBtn) return;
+        if (appState !== "idle") mobileInput.focus();
+    });
+
+    // Desktop physical keyboard fallback when the hidden input somehow lost focus
     document.addEventListener("keydown", (e) => {
         if (document.activeElement === mobileInput) return;
         if (appState === "idle") return;
@@ -969,11 +1018,6 @@ document.addEventListener("DOMContentLoaded", () => {
         if (appState === "secretKey")      return handleSecretKey(value);
         if (appState === "secretDownload") return handleSecretDownload(value);
     }
-
-    document.addEventListener("click", (e) => {
-        if (e.target === startBtn) return;
-        if (appState !== "idle") mobileInput.focus();
-    });
 
     // =========================================================================
     // BOOT
