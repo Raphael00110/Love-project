@@ -926,7 +926,13 @@ document.addEventListener("DOMContentLoaded", () => {
     // browser/IME's own cursor handling stays correct — this is what was
     // causing typed text to come out scrambled/backward on mobile keyboards.
     mobileInput.addEventListener("input", () => {
-        inputText = mobileInput.value;
+        const v = mobileInput.value;
+        inputText = v;
+        // Force cursor to the END every time. On mobile, hidden/invisible
+        // inputs keep their cursor at position 0, so each new character gets
+        // inserted at the start — producing reversed text like "aim" when
+        // the user typed "mia". This one line is the fix.
+        mobileInput.setSelectionRange(v.length, v.length);
         playSystemSound("click");
         updatePromptDisplay();
         scrollActiveLineIntoView();
