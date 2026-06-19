@@ -1803,21 +1803,21 @@ document.addEventListener("DOMContentLoaded", () => {
             const frame          = document.getElementById("cinematicFrame");
             const skipBtn        = document.getElementById("videoPlayBtn");
 
-            // ── FIX: size the container to the REAL visible height. ──────────
-            // On Android Chrome, `100vh` = layout viewport (includes URL bar),
-            // so the container overflows the visible area and the top/bottom of
-            // the video gets clipped. visualViewport.height is the actual
-            // on-screen space beneath the browser chrome — always correct.
-            function setContainerSize() {
-                const vvh = window.visualViewport ? window.visualViewport.height : window.innerHeight;
-                const vvw = window.visualViewport ? window.visualViewport.width  : window.innerWidth;
-                videoContainer.style.width  = vvw + "px";
-                videoContainer.style.height = vvh + "px";
+            // Size to the real visible viewport so the mobile URL bar
+            // doesn't clip the top/bottom of the video
+            function setSize() {
+                const h = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+                const w = window.visualViewport ? window.visualViewport.width  : window.innerWidth;
+                videoContainer.style.width  = w + "px";
+                videoContainer.style.height = h + "px";
             }
-            setContainerSize();
-            if (window.visualViewport) {
-                window.visualViewport.addEventListener("resize", setContainerSize);
-            }
+            setSize();
+            if (window.visualViewport) window.visualViewport.addEventListener("resize", setSize);
+
+            // enablejsapi=1  → YouTube sends postMessage state-change events
+            // origin=...     → tells YouTube who to trust for API messages
+            const origin = encodeURIComponent(location.origin || "*");
+            frame.src = `https://www.youtube.com/embed/UCAKjSPvRoE?autoplay=1&controls=0&rel=0&modestbranding=1&playsinline=1&enablejsapi=1&iv_load_policy=3&vq=hd1080&origin=${origin}`;
 
             videoContainer.style.display = "block";
             await delay(80);
@@ -1826,110 +1826,42 @@ document.addEventListener("DOMContentLoaded", () => {
             // Skip button fades in after 4 s
             setTimeout(() => { skipBtn.style.opacity = "1"; }, 4000);
 
-            let done   = false;
-            let ytPlayer = null;
+            let done = false;
             async function wrapUpCinematic() {
                 if (done) return;
                 done = true;
-                if (window.visualViewport) window.visualViewport.removeEventListener("resize", setContainerSize);
-                try { if (ytPlayer) ytPlayer.destroy(); } catch (_) {}
+                window.removeEventListener("message", onMsg);
+                if (window.visualViewport) window.visualViewport.removeEventListener("resize", setSize);
                 skipBtn.style.opacity           = "0";
                 videoContainer.style.transition = "opacity 1.5s ease";
                 videoContainer.style.opacity    = "0";
                 await delay(1500);
+                frame.src                    = "";
                 videoContainer.style.display = "none";
-                videoContainer.style.width   = "100vw";
-                videoContainer.style.height  = "100vh";
-                document.getElementById("cinematicFrame").innerHTML = ""; // wipe YT iframe
-                terminalApp.style.opacity = "1";
-                canvas.style.opacity      = "1";
+                videoContainer.style.width   = "";
+                videoContainer.style.height  = "";
+                terminalApp.style.opacity    = "1";
+                canvas.style.opacity         = "1";
                 clearScreen();
                 resolve();
             }
 
+            // YouTube fires postMessage state-change events when enablejsapi=1.
+            // info === 0 means the video ended naturally.
+            function onMsg(e) {
+                if (!String(e.origin).includes("youtube.com")) return;
+                try {
+                    const d = typeof e.data === "string" ? JSON.parse(e.data) : e.data;
+                    if (d.event === "onStateChange" && Number(d.info) === 0) {
+                        wrapUpCinematic();
+                    }
+                } catch (_) {}
+            }
+            window.addEventListener("message", onMsg);
+
             skipBtn.onclick = () => wrapUpCinematic();
 
-            // ── AUTO-END via YouTube IFrame API ──────────────────────────────
-            // Wait up to 5 s for the YT script to load (it's injected after
-            // app.js, so it's usually ready well before the user reaches here).
-            await Promise.race([
-                window._ytReady || Promise.resolve(),
-                new Promise(r => setTimeout(r, 5000))
-            ]);
-
-            if (typeof YT !== "undefined" && YT.Player) {
-                // Official API path — most reliable way to catch ENDED state.
-                // YT.Player replaces #cinematicFrame (a div) with its own iframe;
-                // we style that iframe in onReady so it fills the container.
-                try {
-                    ytPlayer = new YT.Player("cinematicFrame", {
-                        width:  "100%",
-                        height: "100%",
-                        videoId: "UCAKjSPvRoE",
-                        playerVars: {
-                            autoplay:        1,
-                            controls:        0,
-                            rel:             0,
-                            modestbranding:  1,
-                            playsinline:     1,
-                            iv_load_policy:  3,
-                            vq:              "hd1080"
-                        },
-                        events: {
-                            onReady: () => {
-                                // Apply correct positioning to the iframe YT just created
-                                const iframe = ytPlayer.getIframe();
-                                Object.assign(iframe.style, {
-                                    position:      "absolute",
-                                    top:           "0",
-                                    left:          "0",
-                                    width:         "100%",
-                                    height:        "100%",
-                                    border:        "none",
-                                    pointerEvents: "none"
-                                });
-                            },
-                            onStateChange: (e) => {
-                                if (e.data === YT.PlayerState.ENDED) wrapUpCinematic();
-                            }
-                        }
-                    });
-                } catch (_) {
-                    useFallbackSrc();
-                }
-            } else {
-                useFallbackSrc();
-            }
-
-            function useFallbackSrc() {
-                // YT API unavailable — inject an iframe directly into the div
-                const container = document.getElementById("cinematicFrame");
-                const iframe    = document.createElement("iframe");
-                Object.assign(iframe.style, {
-                    position: "absolute", top: "0", left: "0",
-                    width: "100%", height: "100%",
-                    border: "none", pointerEvents: "none"
-                });
-                iframe.allow          = "autoplay; fullscreen; encrypted-media";
-                iframe.allowFullscreen = true;
-                iframe.src = "https://www.youtube.com/embed/UCAKjSPvRoE?autoplay=1&controls=0&rel=0&modestbranding=1&playsinline=1&enablejsapi=1&vq=hd1080&iv_load_policy=3";
-                container.innerHTML = "";
-                container.appendChild(iframe);
-
-                function onMsg(e) {
-                    if (!e.origin.includes("youtube.com")) return;
-                    try {
-                        const d = typeof e.data === "string" ? JSON.parse(e.data) : e.data;
-                        if (d.event === "onStateChange" && Number(d.info) === 0) {
-                            window.removeEventListener("message", onMsg);
-                            wrapUpCinematic();
-                        }
-                    } catch (_) {}
-                }
-                window.addEventListener("message", onMsg);
-            }
-
-            // 10-minute absolute safety net
+            // 10-minute absolute safety fallback
             setTimeout(() => wrapUpCinematic(), 600000);
         });
     }
