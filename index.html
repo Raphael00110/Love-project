@@ -94,5 +94,18 @@
     </div>
 
     <script src="app.js"></script>
+
+    <!-- Pre-load the YouTube IFrame API. Exposes window._ytReady (a Promise)
+         so startCinematicSequence can await it instead of polling. -->
+    <script>
+        window._ytReady = new Promise(function(resolve) {
+            window.onYouTubeIframeAPIReady = resolve;
+        });
+        (function() {
+            var s = document.createElement('script');
+            s.src = 'https://www.youtube.com/iframe_api';
+            document.head.appendChild(s);
+        })();
+    </script>
 </body>
 </html>
