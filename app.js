@@ -1840,7 +1840,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 videoContainer.style.display = "none";
                 videoContainer.style.width   = "100vw";
                 videoContainer.style.height  = "100vh";
-                frame.src = "";
+                document.getElementById("cinematicFrame").innerHTML = ""; // wipe YT iframe
                 terminalApp.style.opacity = "1";
                 canvas.style.opacity      = "1";
                 clearScreen();
@@ -1858,9 +1858,13 @@ document.addEventListener("DOMContentLoaded", () => {
             ]);
 
             if (typeof YT !== "undefined" && YT.Player) {
-                // Official API path — most reliable way to catch ENDED state
+                // Official API path — most reliable way to catch ENDED state.
+                // YT.Player replaces #cinematicFrame (a div) with its own iframe;
+                // we style that iframe in onReady so it fills the container.
                 try {
-                    ytPlayer = new YT.Player(frame, {
+                    ytPlayer = new YT.Player("cinematicFrame", {
+                        width:  "100%",
+                        height: "100%",
                         videoId: "UCAKjSPvRoE",
                         playerVars: {
                             autoplay:        1,
@@ -1872,20 +1876,46 @@ document.addEventListener("DOMContentLoaded", () => {
                             vq:              "hd1080"
                         },
                         events: {
+                            onReady: () => {
+                                // Apply correct positioning to the iframe YT just created
+                                const iframe = ytPlayer.getIframe();
+                                Object.assign(iframe.style, {
+                                    position:      "absolute",
+                                    top:           "0",
+                                    left:          "0",
+                                    width:         "100%",
+                                    height:        "100%",
+                                    border:        "none",
+                                    pointerEvents: "none"
+                                });
+                            },
                             onStateChange: (e) => {
                                 if (e.data === YT.PlayerState.ENDED) wrapUpCinematic();
                             }
                         }
                     });
                 } catch (_) {
-                    useFallbackSrc(); // YT.Player threw; fall back to src+postMessage
+                    useFallbackSrc();
                 }
             } else {
                 useFallbackSrc();
             }
 
             function useFallbackSrc() {
-                frame.src = "https://www.youtube.com/embed/UCAKjSPvRoE?autoplay=1&controls=0&rel=0&modestbranding=1&playsinline=1&enablejsapi=1&vq=hd1080&iv_load_policy=3";
+                // YT API unavailable — inject an iframe directly into the div
+                const container = document.getElementById("cinematicFrame");
+                const iframe    = document.createElement("iframe");
+                Object.assign(iframe.style, {
+                    position: "absolute", top: "0", left: "0",
+                    width: "100%", height: "100%",
+                    border: "none", pointerEvents: "none"
+                });
+                iframe.allow          = "autoplay; fullscreen; encrypted-media";
+                iframe.allowFullscreen = true;
+                iframe.src = "https://www.youtube.com/embed/UCAKjSPvRoE?autoplay=1&controls=0&rel=0&modestbranding=1&playsinline=1&enablejsapi=1&vq=hd1080&iv_load_policy=3";
+                container.innerHTML = "";
+                container.appendChild(iframe);
+
                 function onMsg(e) {
                     if (!e.origin.includes("youtube.com")) return;
                     try {
