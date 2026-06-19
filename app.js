@@ -1803,7 +1803,7 @@ document.addEventListener("DOMContentLoaded", () => {
             const frame          = document.getElementById("cinematicFrame");
             const skipBtn        = document.getElementById("videoPlayBtn");
 
-            frame.src = "https://www.youtube.com/embed/UCAKjSPvRoE?autoplay=1&controls=0&rel=0&modestbranding=1&loop=1&playlist=UCAKjSPvRoE";
+            frame.src = "https://www.youtube.com/embed/UCAKjSPvRoE?autoplay=1&controls=0&rel=0&modestbranding=1&loop=1&playlist=UCAKjSPvRoE&playsinline=1&vq=hd1080";
             videoContainer.style.display = "block";
             videoContainer.style.opacity = "1";
 
