@@ -12,13 +12,26 @@
     <div id="scanline"></div>
 
     <!-- Hidden input keeps mobile keyboard alive -->
-    <input id="mobileInput" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" style="position:fixed;opacity:0;pointer-events:none;width:1px;height:1px;top:0;left:0;z-index:-1;font-size:16px;">
+    <input id="mobileInput" type="text" autocomplete="off" autocorrect="off"
+           autocapitalize="off" spellcheck="false"
+           style="position:fixed;opacity:0;pointer-events:none;width:1px;height:1px;top:0;left:0;z-index:-1;">
 
     <!-- Fullscreen Cinematic Viewport -->
     <div id="videoContainer" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:black; z-index:9999; overflow:hidden;">
-        <div style="width:100%; height:100%; transform:scale(1.15); transform-origin:center center;">
-            <iframe id="cinematicFrame" src="" style="width:100%; height:100%; border:none;" allow="autoplay"></iframe>
-        </div>
+        <!--
+          Full-bleed iframe: sized so the 16:9 video always COVERS the screen.
+          On a portrait phone the height wins  → width  = 177.78vh (16/9 * 100)
+          On a landscape screen the width wins → height = 56.25vw  (9/16 * 100)
+          whichever is larger fills the screen; the other axis overflows and is
+          clipped. No CSS scale() = no blur.
+        -->
+        <iframe id="cinematicFrame" src="" allow="autoplay; fullscreen" allowfullscreen
+            style="position:absolute;
+                   top:50%; left:50%;
+                   transform:translate(-50%,-50%);
+                   width:100vw; height:56.25vw;
+                   min-width:177.78vh; min-height:100vh;
+                   border:none; display:block;"></iframe>
         <button id="videoPlayBtn" style="position:absolute; bottom:30px; right:30px; background:rgba(0,255,65,0.1); color:#00ff41; border:2px solid #00ff41; padding:10px 20px; font-family:monospace; font-size:0.9rem; cursor:pointer; box-shadow:0 0 10px rgba(0,255,65,0.4); text-transform:uppercase; z-index:10000;">
             Skip Stream ❯
         </button>
