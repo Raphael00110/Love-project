@@ -1803,26 +1803,58 @@ document.addEventListener("DOMContentLoaded", () => {
             const frame          = document.getElementById("cinematicFrame");
             const skipBtn        = document.getElementById("videoPlayBtn");
 
-            frame.src = "https://www.youtube.com/embed/UCAKjSPvRoE?autoplay=1&controls=0&rel=0&modestbranding=1&loop=1&playlist=UCAKjSPvRoE&playsinline=1&vq=hd1080";
-            videoContainer.style.display = "block";
-            videoContainer.style.opacity = "1";
+            // enablejsapi=1 lets us detect the natural end via postMessage.
+            // loop removed so the video actually ends.
+            // iv_load_policy=3 hides video annotations.
+            frame.src = "https://www.youtube.com/embed/UCAKjSPvRoE?autoplay=1&controls=0&rel=0&modestbranding=1&playsinline=1&enablejsapi=1&vq=hd1080&iv_load_policy=3";
+
+            videoContainer.style.display  = "block";
+            await delay(80);
+            videoContainer.style.opacity  = "1";   // triggers the 1.5s CSS fade-in
+
+            // Skip button fades in after 4 s — more cinematic than instant
+            setTimeout(() => { skipBtn.style.opacity = "1"; }, 4000);
 
             let done = false;
             async function wrapUpCinematic() {
                 if (done) return;
                 done = true;
-                videoContainer.style.transition = "opacity 1s ease";
+                skipBtn.style.opacity           = "0";
+                videoContainer.style.transition = "opacity 1.5s ease";
                 videoContainer.style.opacity    = "0";
-                await delay(1000);
-                videoContainer.style.display = "none";
+                await delay(1500);
+                videoContainer.style.display    = "none";
                 frame.src = "";
                 terminalApp.style.opacity = "1";
                 canvas.style.opacity      = "1";
                 clearScreen();
                 resolve();
             }
-            skipBtn.onclick = () => wrapUpCinematic();
-            setTimeout(() => wrapUpCinematic(), 40000);
+
+            // YouTube fires a postMessage when the player state changes.
+            // info === 0 means "ended" — this is how we let the video play out fully.
+            function onYTMessage(e) {
+                if (e.origin !== "https://www.youtube.com") return;
+                try {
+                    const data = JSON.parse(e.data);
+                    if (data.event === "onStateChange" && data.info === 0) {
+                        window.removeEventListener("message", onYTMessage);
+                        wrapUpCinematic();
+                    }
+                } catch (_) {}
+            }
+            window.addEventListener("message", onYTMessage);
+
+            skipBtn.onclick = () => {
+                window.removeEventListener("message", onYTMessage);
+                wrapUpCinematic();
+            };
+
+            // 10-minute safety fallback in case postMessage never fires
+            setTimeout(() => {
+                window.removeEventListener("message", onYTMessage);
+                wrapUpCinematic();
+            }, 600000);
         });
     }
 
