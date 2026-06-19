@@ -19,29 +19,25 @@
     <!-- Fullscreen Cinematic Viewport -->
     <div id="videoContainer" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:#000; z-index:9999; overflow:hidden; opacity:0; transition:opacity 1.5s ease;">
 
-        <!-- Full-bleed cover iframe — pointer-events:none lets touches reach the skip button -->
+        <!-- Simple 100%×100% iframe — YouTube handles aspect ratio internally.
+             For portrait videos this shows them centred with thin black side bars.
+             For landscape it fills the full width. No CSS cropping, no blur.
+             pointer-events:none so all touches reach the skip button. -->
         <iframe id="cinematicFrame" src="" allow="autoplay; fullscreen; encrypted-media" allowfullscreen
-            style="position:absolute;
-                   top:50%; left:50%;
-                   transform:translate(-50%,-50%);
-                   width:100vw;  height:56.25vw;
-                   min-width:177.78vh; min-height:100vh;
+            style="position:absolute; top:0; left:0;
+                   width:100%; height:100%;
                    border:none; display:block;
                    pointer-events:none;"></iframe>
 
-        <!-- Cinematic vignette: darkens the edges like a movie-theatre lens -->
+        <!-- Cinematic vignette — darkens edges like a movie lens -->
         <div style="position:absolute;inset:0;
-                    background:radial-gradient(ellipse at 50% 50%, transparent 50%, rgba(0,0,0,0.72) 100%);
+                    background:radial-gradient(ellipse at 50% 50%, transparent 52%, rgba(0,0,0,0.68) 100%);
                     z-index:2; pointer-events:none;"></div>
 
-        <!-- Letterbox bars — CinemaScope aesthetic -->
-        <div style="position:absolute;top:0;left:0;right:0;height:8vh;background:#000;z-index:3;pointer-events:none;"></div>
-        <div style="position:absolute;bottom:0;left:0;right:0;height:8vh;background:#000;z-index:3;pointer-events:none;"></div>
-
-        <!-- Skip button: fixed so it sits above the iframe on mobile;
-             starts invisible and fades in after 4 s (feels more cinematic) -->
+        <!-- Skip button — fixed so it layers above the iframe on mobile;
+             fades in after 4 s so the opening isn't interrupted -->
         <button id="videoPlayBtn"
-            style="position:fixed; bottom:calc(8vh + 18px); right:20px;
+            style="position:fixed; bottom:32px; right:20px;
                    z-index:10000;
                    background:rgba(0,0,0,0.55);
                    color:rgba(255,255,255,0.9);
