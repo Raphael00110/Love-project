@@ -17,35 +17,12 @@
            style="position:fixed;opacity:0;pointer-events:none;width:1px;height:1px;top:0;left:0;z-index:-1;">
 
     <!-- Fullscreen Cinematic Viewport -->
-    <div id="videoContainer" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:#000; z-index:9999; overflow:hidden; opacity:0; transition:opacity 1.5s ease;">
-
-        <!-- YT.Player replaces this div with its own iframe (styled in JS onReady).
-             pointer-events:none is applied via JS after the iframe is created. -->
-        <div id="cinematicFrame" style="position:absolute;top:0;left:0;width:100%;height:100%;"></div>
-
-        <!-- Cinematic vignette — darkens edges like a movie lens -->
-        <div style="position:absolute;inset:0;
-                    background:radial-gradient(ellipse at 50% 50%, transparent 52%, rgba(0,0,0,0.68) 100%);
-                    z-index:2; pointer-events:none;"></div>
-
-        <!-- Skip button — fixed so it layers above the iframe on mobile;
-             fades in after 4 s so the opening isn't interrupted -->
-        <button id="videoPlayBtn"
-            style="position:fixed; bottom:32px; right:20px;
-                   z-index:10000;
-                   background:rgba(0,0,0,0.55);
-                   color:rgba(255,255,255,0.9);
-                   border:1px solid rgba(255,255,255,0.35);
-                   padding:11px 22px;
-                   font-family:'Courier New',monospace;
-                   font-size:0.72rem; letter-spacing:3px;
-                   text-transform:uppercase; cursor:pointer;
-                   border-radius:2px;
-                   backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px);
-                   box-shadow:0 2px 20px rgba(0,0,0,0.7);
-                   opacity:0; transition:opacity 0.8s ease;
-                   -webkit-tap-highlight-color:transparent;">
-            SKIP ❯
+    <div id="videoContainer" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:black; z-index:9999; overflow:hidden;">
+        <div style="width:100%; height:100%; transform:scale(1.15); transform-origin:center center;">
+            <iframe id="cinematicFrame" src="" style="width:100%; height:100%; border:none;" allow="autoplay"></iframe>
+        </div>
+        <button id="videoPlayBtn" style="position:absolute; bottom:30px; right:30px; background:rgba(0,255,65,0.1); color:#00ff41; border:2px solid #00ff41; padding:10px 20px; font-family:monospace; font-size:0.9rem; cursor:pointer; box-shadow:0 0 10px rgba(0,255,65,0.4); text-transform:uppercase; z-index:10000;">
+            Skip Stream ❯
         </button>
     </div>
 
@@ -88,18 +65,5 @@
     </div>
 
     <script src="app.js"></script>
-
-    <!-- Pre-load the YouTube IFrame API. Exposes window._ytReady (a Promise)
-         so startCinematicSequence can await it instead of polling. -->
-    <script>
-        window._ytReady = new Promise(function(resolve) {
-            window.onYouTubeIframeAPIReady = resolve;
-        });
-        (function() {
-            var s = document.createElement('script');
-            s.src = 'https://www.youtube.com/iframe_api';
-            document.head.appendChild(s);
-        })();
-    </script>
 </body>
 </html>
