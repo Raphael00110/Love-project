@@ -1803,27 +1803,43 @@ document.addEventListener("DOMContentLoaded", () => {
             const frame          = document.getElementById("cinematicFrame");
             const skipBtn        = document.getElementById("videoPlayBtn");
 
-            // enablejsapi=1 lets us detect the natural end via postMessage.
-            // loop removed so the video actually ends.
-            // iv_load_policy=3 hides video annotations.
-            frame.src = "https://www.youtube.com/embed/UCAKjSPvRoE?autoplay=1&controls=0&rel=0&modestbranding=1&playsinline=1&enablejsapi=1&vq=hd1080&iv_load_policy=3";
+            // ── FIX: size the container to the REAL visible height. ──────────
+            // On Android Chrome, `100vh` = layout viewport (includes URL bar),
+            // so the container overflows the visible area and the top/bottom of
+            // the video gets clipped. visualViewport.height is the actual
+            // on-screen space beneath the browser chrome — always correct.
+            function setContainerSize() {
+                const vvh = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+                const vvw = window.visualViewport ? window.visualViewport.width  : window.innerWidth;
+                videoContainer.style.width  = vvw + "px";
+                videoContainer.style.height = vvh + "px";
+            }
+            setContainerSize();
+            if (window.visualViewport) {
+                window.visualViewport.addEventListener("resize", setContainerSize);
+            }
 
-            videoContainer.style.display  = "block";
+            videoContainer.style.display = "block";
             await delay(80);
-            videoContainer.style.opacity  = "1";   // triggers the 1.5s CSS fade-in
+            videoContainer.style.opacity = "1";
 
-            // Skip button fades in after 4 s — more cinematic than instant
+            // Skip button fades in after 4 s
             setTimeout(() => { skipBtn.style.opacity = "1"; }, 4000);
 
-            let done = false;
+            let done   = false;
+            let ytPlayer = null;
             async function wrapUpCinematic() {
                 if (done) return;
                 done = true;
+                if (window.visualViewport) window.visualViewport.removeEventListener("resize", setContainerSize);
+                try { if (ytPlayer) ytPlayer.destroy(); } catch (_) {}
                 skipBtn.style.opacity           = "0";
                 videoContainer.style.transition = "opacity 1.5s ease";
                 videoContainer.style.opacity    = "0";
                 await delay(1500);
-                videoContainer.style.display    = "none";
+                videoContainer.style.display = "none";
+                videoContainer.style.width   = "100vw";
+                videoContainer.style.height  = "100vh";
                 frame.src = "";
                 terminalApp.style.opacity = "1";
                 canvas.style.opacity      = "1";
@@ -1831,30 +1847,60 @@ document.addEventListener("DOMContentLoaded", () => {
                 resolve();
             }
 
-            // YouTube fires a postMessage when the player state changes.
-            // info === 0 means "ended" — this is how we let the video play out fully.
-            function onYTMessage(e) {
-                if (e.origin !== "https://www.youtube.com") return;
+            skipBtn.onclick = () => wrapUpCinematic();
+
+            // ── AUTO-END via YouTube IFrame API ──────────────────────────────
+            // Wait up to 5 s for the YT script to load (it's injected after
+            // app.js, so it's usually ready well before the user reaches here).
+            await Promise.race([
+                window._ytReady || Promise.resolve(),
+                new Promise(r => setTimeout(r, 5000))
+            ]);
+
+            if (typeof YT !== "undefined" && YT.Player) {
+                // Official API path — most reliable way to catch ENDED state
                 try {
-                    const data = JSON.parse(e.data);
-                    if (data.event === "onStateChange" && data.info === 0) {
-                        window.removeEventListener("message", onYTMessage);
-                        wrapUpCinematic();
-                    }
-                } catch (_) {}
+                    ytPlayer = new YT.Player(frame, {
+                        videoId: "UCAKjSPvRoE",
+                        playerVars: {
+                            autoplay:        1,
+                            controls:        0,
+                            rel:             0,
+                            modestbranding:  1,
+                            playsinline:     1,
+                            iv_load_policy:  3,
+                            vq:              "hd1080"
+                        },
+                        events: {
+                            onStateChange: (e) => {
+                                if (e.data === YT.PlayerState.ENDED) wrapUpCinematic();
+                            }
+                        }
+                    });
+                } catch (_) {
+                    useFallbackSrc(); // YT.Player threw; fall back to src+postMessage
+                }
+            } else {
+                useFallbackSrc();
             }
-            window.addEventListener("message", onYTMessage);
 
-            skipBtn.onclick = () => {
-                window.removeEventListener("message", onYTMessage);
-                wrapUpCinematic();
-            };
+            function useFallbackSrc() {
+                frame.src = "https://www.youtube.com/embed/UCAKjSPvRoE?autoplay=1&controls=0&rel=0&modestbranding=1&playsinline=1&enablejsapi=1&vq=hd1080&iv_load_policy=3";
+                function onMsg(e) {
+                    if (!e.origin.includes("youtube.com")) return;
+                    try {
+                        const d = typeof e.data === "string" ? JSON.parse(e.data) : e.data;
+                        if (d.event === "onStateChange" && Number(d.info) === 0) {
+                            window.removeEventListener("message", onMsg);
+                            wrapUpCinematic();
+                        }
+                    } catch (_) {}
+                }
+                window.addEventListener("message", onMsg);
+            }
 
-            // 10-minute safety fallback in case postMessage never fires
-            setTimeout(() => {
-                window.removeEventListener("message", onYTMessage);
-                wrapUpCinematic();
-            }, 600000);
+            // 10-minute absolute safety net
+            setTimeout(() => wrapUpCinematic(), 600000);
         });
     }
 
